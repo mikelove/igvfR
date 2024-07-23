@@ -1,9 +1,9 @@
 library(shiny)
 library(tibble)
 library(dplyr)
-library(DT)
+# library(DT)
 
-# page layout: left-side input, right-side output
+# UI page layout: left-side input, right-side output
 ui <- fluidPage(
   titlePanel("IGVF shiny demo"),
   sidebarLayout(
@@ -19,7 +19,10 @@ ui <- fluidPage(
   )
 )
 
+# server defines the logic of the page, builds the table, etc.
 server <- function(input, output) {
+  
+  # event reactive: happens when you press 'Go'
   makeTable <- eventReactive(input$go, {
     
     # lookup ENSG
@@ -30,9 +33,9 @@ server <- function(input, output) {
     # send query to db, retrieve list of results (regions)
     cursor <- db$aql$execute(
       "FOR l in regulatory_regions_genes \
-      FILTER l._to == @geneid \
-      FILTER l.`score:long` > @thres \
-      return l",
+       FILTER l._to == @geneid \
+       FILTER l.`score:long` > @thres \
+       return l",
       bind_vars=list(geneid=paste0("genes/",gene_id), 
                      thres=input$score_thres)
     )
@@ -53,15 +56,19 @@ server <- function(input, output) {
                     context=biological_context) |>
       dplyr::mutate(
         from = sub("regulatory_regions/", "", from),
-        to = sub("genes/", "", to)
+        to = sub("genes/", "", to),
+        context = sub("ontology_terms/", "", context)
       ) |>
       dplyr::arrange(desc(score))
     
   })
+  
+  # render a table
   output$regulatory_regions <- renderTable({
     tab <- makeTable()
     tab
   })
 }
 
+# run the app
 shinyApp(ui = ui, server = server)

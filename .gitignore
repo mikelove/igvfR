@@ -1,2 +1,3 @@
 *.rda
 .DS_Store
+.Rproj.user

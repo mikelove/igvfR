@@ -10,7 +10,8 @@ library(dplyr)
 library(tibble)
 if (!file.exists("sym2gene.rda")) {
   library(EnsDb.Hsapiens.v86)
-  sym2gene <- ensembldb::genes(EnsDb.Hsapiens.v86, return.type="DataFrame") |>
+  sym2gene <- ensembldb::genes(EnsDb.Hsapiens.v86, 
+                               return.type="DataFrame") |>
     as_tibble() |>
     dplyr::select(symbol, gene_id) |>
     dplyr::filter(!duplicated(symbol))
