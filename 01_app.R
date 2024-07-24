@@ -1,7 +1,7 @@
 library(shiny)
 library(tibble)
 library(dplyr)
-# library(DT)
+library(tidyr)
 
 # UI page layout: left-side input, right-side output
 ui <- fluidPage(
@@ -14,6 +14,7 @@ ui <- fluidPage(
       actionButton("go", "Go!")
     ),
     mainPanel(
+      plotOutput("score_histogram"),
       tableOutput("regulatory_regions")
     )
   )
@@ -22,13 +23,16 @@ ui <- fluidPage(
 # server defines the logic of the page, builds the table, etc.
 server <- function(input, output) {
   
-  # event reactive: happens when you press 'Go'
-  makeTable <- eventReactive(input$go, {
+  # this happens when you press 'Go'
+  observeEvent(input$go, {
     
     # lookup ENSG
     gene_id <- sym2gene |> 
       dplyr::filter(symbol == input$query_symbol) |>
       dplyr::pull(gene_id)
+    
+    # below we use the Arango Query Language to query the db,
+    # alternatively could use the HTTP API for simple queries
     
     # send query to db, retrieve list of results (regions)
     cursor <- db$aql$execute(
@@ -46,28 +50,38 @@ server <- function(input, output) {
       hits <- c(hits, list(cursor$pop()))
     }
     
-    # e2g table
-    tab <- as_tibble(do.call(rbind, lapply(hits, as.data.frame)))
+    # region to gene table
+    tab0 <- as_tibble(
+      do.call(
+        rbind, lapply(hits, as.data.frame)
+        )
+      )
 
-    # return with new column names and sorted by score
-    tab |>
-      dplyr::select(from=X_from, to=X_to, 
+    # new column names and sorted by score
+    tab <- tab0 |>
+      dplyr::select(from=X_from,
                     score=score.long, 
+                    source=source,
                     context=biological_context) |>
       dplyr::mutate(
         from = sub("regulatory_regions/", "", from),
-        to = sub("genes/", "", to),
-        context = sub("ontology_terms/", "", context)
-      ) |>
+        context = sub("ontology_terms/", "", context)) |>
+      tidyr::separate(from, 
+                      into=c("type","chrom","start","end","ref")) |>
       dplyr::arrange(desc(score))
+  
+    # histogram of scores
+    output$score_histogram <- renderPlot({
+      hist(tab$score, xlab="score", main="")
+    })
+    
+    # render a table of the region data
+    output$regulatory_regions <- renderTable({
+      tab
+    })
     
   })
-  
-  # render a table
-  output$regulatory_regions <- renderTable({
-    tab <- makeTable()
-    tab
-  })
+      
 }
 
 # run the app

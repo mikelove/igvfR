@@ -6,9 +6,9 @@ cl <- a$ArangoClient(hosts="https://db-dev.catalog.igvf.org")
 db <- cl$db("igvf", username="guest", password="guestigvfcatalog")
 
 # hack to save the symbol to gene map
-library(dplyr)
-library(tibble)
 if (!file.exists("sym2gene.rda")) {
+  library(dplyr)
+  library(tibble)
   library(EnsDb.Hsapiens.v86)
   sym2gene <- ensembldb::genes(EnsDb.Hsapiens.v86, 
                                return.type="DataFrame") |>
