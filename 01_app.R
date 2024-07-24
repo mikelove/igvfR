@@ -28,6 +28,8 @@ server <- function(input, output) {
   # this happens when you press 'Go'
   observeEvent(input$go, {
     
+    # input <- list(query_symbol="GCK", score_thres=.85)
+    
     # lookup ENSG
     gene_id <- sym2gene |> 
       dplyr::filter(symbol == input$query_symbol) |>
@@ -61,26 +63,28 @@ server <- function(input, output) {
 
     # new column names and sorted by score
     tab <- tab0 |>
-      dplyr::select(from=X_from,
+      dplyr::select(id=X_id,
                     score=score.long, 
                     source=source,
                     context=biological_context) |>
       dplyr::mutate(
-        from = sub("regulatory_regions/", "", from),
+        id = sub("regulatory_regions_genes/", "", id),
         context = sub("ontology_terms/", "", context)) |>
-      tidyr::separate(from, 
-                      into=c("type","chrom","start","end","ref")) |>
-      dplyr::select(-ref) |>
+      tidyr::separate(id, 
+                      into=c("type","chrom","start","end",
+                             "ref","gene","cCRE")) |>
+      dplyr::select(!c(ref,gene)) |>
       dplyr::mutate_at(c("start","end"), as.integer) |>
       dplyr::arrange(desc(score))
   
     # make a GRanges object of regions
     regions_gr <- tab |>
       dplyr::rename(seqnames = chrom) |>
-      plyranges::as_granges()
+      plyranges::as_granges() |>
+      plyranges::filter(!duplicated(cCRE))
     
     mid <- round(mean(tab$start))
-    halfwindow <- 1e5
+    halfwindow <- 5e4
     par <- pgParams(
       chrom = tab$chrom[1], 
       chromstart = mid - halfwindow,
