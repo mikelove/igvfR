@@ -63,17 +63,16 @@ server <- function(input, output) {
 
     # new column names and sorted by score
     tab <- tab0 |>
-      dplyr::select(id=X_id,
+      dplyr::select(from=X_from,
                     score=score.long, 
                     source=source,
                     context=biological_context) |>
       dplyr::mutate(
-        id = sub("regulatory_regions_genes/", "", id),
+        from = sub("regulatory_regions/", "", from),
         context = sub("ontology_terms/", "", context)) |>
-      tidyr::separate(id, 
-                      into=c("type","chrom","start","end",
-                             "ref","gene","cCRE")) |>
-      dplyr::select(!c(ref,gene)) |>
+      tidyr::separate(from, 
+                      into=c("type","chrom","start","end","ref")) |>
+      dplyr::select(!ref) |>
       dplyr::mutate_at(c("start","end"), as.integer) |>
       dplyr::arrange(desc(score))
   
@@ -81,7 +80,8 @@ server <- function(input, output) {
     regions_gr <- tab |>
       dplyr::rename(seqnames = chrom) |>
       plyranges::as_granges() |>
-      plyranges::filter(!duplicated(cCRE))
+      plyranges::mutate(id = paste0(start,"-",end)) |>
+      plyranges::filter(!duplicated(id))
     
     mid <- round(mean(tab$start))
     halfwindow <- 5e4
@@ -93,7 +93,7 @@ server <- function(input, output) {
       just = c("left", "bottom")
     )
     
-    pal <- colorRampPalette(c("blue3", "purple"))
+    pal <- colorRampPalette(c("dodgerblue", "purple3"))
     
     # draw the regulatory regions in a plotgardener plot
     output$genomic_plot <- renderPlot({
